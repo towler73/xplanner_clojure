@@ -1,12 +1,12 @@
 (ns dashboard.core
   (:require [org.httpkit.server :as http-kit-server]
-            [compojure.core     :as comp :refer (defroutes GET POST)]
+            [compojure.core     :refer (defroutes GET POST)]
             [compojure.route    :as route]
             [ring.middleware.defaults]
             [taoensso.sente     :as sente]
-            [hiccup.core        :as hiccup]
-            [hiccup.page        :as page]
-            [hiccup.element     :as ele]))
+            [dashboard.controller :as controller]
+            [dashboard.db :as db]
+            [clojure.core.async :as async :refer (<! <!! >! >!! put! chan go go-loop)]))
 
 (defn- logf [fmt & xs] (println (apply format fmt xs)))
 
@@ -21,20 +21,10 @@
   (def connected-uids                connected-uids) ; Watchable, read-only atom
   )
 
-(defn home [req]
-  (page/html5
-    (hiccup/html
-      [:head
-       [:title "Home"]
-       (page/include-css "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css")
-       (page/include-js "https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js" "js/main.js")]
-      [:body
-       [:div#content]
-       (ele/javascript-tag "$(function() {dashboard.core.main();});")
-       ])))
+
 
 (defroutes my-routes
-           (GET  "/"      req (home req))
+           (GET  "/"      req (controller/index req))
            ;;
            (GET  "/chsk"  req (ring-ajax-get-or-ws-handshake req))
            (POST "/chsk"  req (ring-ajax-post                req))
@@ -64,6 +54,42 @@
   (event-msg-handler ev-msg))
 
 
+(do ; Server-side methods
+  (defmethod event-msg-handler :default ; Fallback
+    [{:as ev-msg :keys [event id ?data ring-req ?reply-fn send-fn]}]
+    (let [session (:session ring-req)
+          uid     (:uid     session)]
+      (logf "Unhandled event: %s" event)
+      (when ?reply-fn
+        (?reply-fn {:umatched-event-as-echoed-from-from-server event}))))
+
+  ;; Add your (defmethod event-msg-handler <event-id> [ev-msg] <body>)s here...
+  (defmethod event-msg-handler :dashboard/stories
+    [{:as ev-msg :keys [event id ?data ring-req ?reply-fn send-fn]}]
+    (let [session (:session ring-req)
+          uid     (:uid     session)]
+      (logf "Get Stories event: %s" event)
+      (when ?reply-fn
+        (println "data: " ?data)
+        (?reply-fn (db/iterationDetail (:iteration-id ?data)))))
+    )
+  )
+
+
+
+(defn start-broadcaster! []
+  (go-loop [i 0]
+           (<! (async/timeout 10000))
+           (println (format "Broadcasting server>user: %s" @connected-uids))
+           (doseq [uid (:any @connected-uids)]
+             (chsk-send! uid
+                         [:some/broadcast
+                          {:what-is-this "A broadcast pushed from server"
+                           :how-often    "Every 10 seconds"
+                           :to-whom uid
+                           :i i}]))
+           (recur (inc i))))
+
 ;; init
 
 (defonce http-server_ (atom nil))
@@ -74,7 +100,7 @@
 
 (defn start-http-server! []
   (stop-http-server!)
-  (let [s (http-kit-server/run-server (var my-ring-handler) {:port 0})
+  (let [s (http-kit-server/run-server (var my-ring-handler) {:port 9000})
         uri (format "http://localhost:%s/" (:local-port (meta s)))]
     (reset! http-server_ s)
     (logf "Http-kit server is running at `%s`" uri)))
