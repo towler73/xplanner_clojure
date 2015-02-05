@@ -19,7 +19,9 @@
                  [ring/ring-defaults "0.1.3"]               ; ring middleware
                  [hiccup "1.0.5"]                           ; html rendering
                  [jayq "2.5.2"]
-                 [reagent "0.5.0-alpha"]]
+                 [reagent "0.5.0-alpha"]
+                 [clj-dbcp      "0.8.1"]
+                 [clj-liquibase "0.5.2"]]
 
   :plugins [[lein-ancient "0.5.5"]                          ; check for outdated dependencies
             [lein-cljsbuild "1.0.4"]                        ; compile clojure scirpt

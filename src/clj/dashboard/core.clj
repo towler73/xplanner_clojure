@@ -4,7 +4,7 @@
             [compojure.route    :as route]
             [ring.middleware.defaults]
             [taoensso.sente     :as sente]
-            [dashboard.controller :as controller]
+            [dashboard.templates :as templates]
             [dashboard.db :as db]
             [clojure.core.async :as async :refer (<! <!! >! >!! put! chan go go-loop)]))
 
@@ -24,7 +24,7 @@
 
 
 (defroutes my-routes
-           (GET  "/"      req (controller/index req))
+           (GET  "/"      req (templates/main))
            ;;
            (GET  "/chsk"  req (ring-ajax-get-or-ws-handshake req))
            (POST "/chsk"  req (ring-ajax-post                req))
@@ -71,7 +71,38 @@
       (logf "Get Stories event: %s" event)
       (when ?reply-fn
         (println "data: " ?data)
-        (?reply-fn (db/iterationDetail (:iteration-id ?data)))))
+        (?reply-fn (db/iterationStories (:iteration-id ?data)))))
+    )
+
+  (defmethod event-msg-handler :dashboard/iteration-teams
+    [{:as ev-msg :keys [event id ?data ring-req ?reply-fn send-fn]}]
+    (let [session (:session ring-req)
+          uid     (:uid     session)]
+      (logf "Get Iteration Teams event: %s" event)
+      (when ?reply-fn
+        (println "data: " ?data)
+        (?reply-fn (db/iterationTeams (:iteration-id ?data)))))
+    )
+
+  (defmethod event-msg-handler :dashboard/project-iterations
+    [{:as ev-msg :keys [event id ?data ring-req ?reply-fn send-fn]}]
+    (let [session (:session ring-req)
+          uid     (:uid     session)]
+      (logf "Get Project Iterations event: %s" event)
+      (when ?reply-fn
+        (println "data: " ?data)
+        ;todo fix current iteration id
+        (?reply-fn {:iterations (db/projectIterations (:project-id ?data)) :current-iteration-id 668460})))
+    )
+
+  (defmethod event-msg-handler :dashboard/save-team-estimate
+    [{:as ev-msg :keys [event id ?data ring-req ?reply-fn send-fn]}]
+    (let [session (:session ring-req)
+          uid     (:uid     session)]
+      (logf "Get Project Iterations event: %s" event)
+      (db/save-team-estimate (:iteration_id ?data) (:id ?data) (:team_estimate ?data))
+      (when ?reply-fn
+        (?reply-fn {:saved? true})))
     )
   )
 

@@ -1,6 +1,10 @@
 # dashboard
 
-FIXME: description
+Agile project manager that is an extension of Xplanner
+
+## Libraries Used
+
+[clj-liquibase] (https://github.com/kumarshantanu)
 
 ## Installation
 

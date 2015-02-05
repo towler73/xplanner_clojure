@@ -11,8 +11,29 @@ select * from iteration
 where id = :iteration_id
 
 -- name: iteration-teams
-select * from story s join team t on s.team_id = t.id
-where iteration_id = :iteration_id
+select t.id, t.name, t.cool_name, s.estimated_hours, s.status, it.business_estimate, it.team_estimate, s.iteration_id
+from story s join team t on s.team_id = t.id
+left join iteration_team it on t.id = it.team_id and s.iteration_id = it.iteration_id
+where s.iteration_id = :iteration_id
+
+-- name: insert-team-estimate!
+insert into iteration_team (iteration_id, team_id, team_estimate)
+values (:iteration_id, :team_id, :estimate)
+
+-- name: update-team-estimate!
+update iteration_team set team_estimate = :team_estimate
+where iteration_id = :iteration_id and team_id = :team_id
+
+-- name: select-iteration-team
+select *
+from iteration_team
+where iteration_id = :iteration_id and team_id = :team_id
+
+-- name: project-iterations
+select *
+from iteration
+where project_id = :project_id
+order by start_date desc
 
 -- name: person
 select * from person

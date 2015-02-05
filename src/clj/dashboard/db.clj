@@ -1,14 +1,72 @@
 (ns dashboard.db
-  (:require [yesql.core :refer [defqueries]]))
+  (:require [yesql.core :refer [defqueries]]
+            [clojure.string :as s]))
 
 (defqueries "sql/db.sql")
 
 (def db-spec {:subprotocol "mysql" :subname "//localhost:3306/xplanner?user=xplanner&password=xp"})
 
 
-(defn iterationDetail
+(defn iterationStories
   [iterationId]
   (let [stories (iteration-stories db-spec iterationId)]
-    {:iteration (iteration db-spec iterationId) :stories (zipmap (map :id stories) stories)}))
+    (zipmap (map :id stories) stories)))
 
+(def status-map {"p" "New"
+                 "n" "Incomplete"
+                 "r" "Ready for Review"
+                 "e" "Ready for Dev"
+                 "w" "In Progress"
+                 "c" "Implemented"
+                 "q" "Passed QA"
+                 "i" "Passed UAT"
+                 "f" "Issue Found"
+                 "v" "Release Ready"})
 
+(defn sum-units
+  [team team-result]
+  (assoc team-result :estimated_hours (+ (:estimated_hours team-result 0) (:estimated_hours team 0)))
+  )
+
+(defn sum-units-by-status
+  [team team-result]
+  (let [status (status-map (:status team))
+        status-key (keyword (s/replace (s/lower-case status) " " "-"))]
+    (assoc team-result status-key (+ (status-key team-result 0) (:estimated_hours team 0))))
+  )
+
+(defn add-units-by-status
+  [team]
+  (dissoc (merge team (sum-units-by-status team {})) :status)
+  )
+
+(defn reduce-team-stories
+  ([teams] (reduce-team-stories teams (sorted-map)))
+  ([teams result]
+    (let [team (first teams)
+          remaining-teams (rest teams)
+          team-id (:id team)]
+      (if-not team
+        result
+        (if-let [team-result (get result team-id)]
+          (recur remaining-teams (assoc result team-id (sum-units-by-status team (sum-units team team-result))))
+          (recur remaining-teams (assoc result team-id (add-units-by-status team))))))))
+
+(defn iterationTeams
+  [iterationId]
+  (let [team-stories (iteration-teams db-spec iterationId)]
+      (reduce-team-stories team-stories)
+    )
+  )
+
+(defn save-team-estimate
+  [iteration-id team-id team-estimate]
+  (println (empty? (select-iteration-team db-spec iteration-id team-id)))
+  (if (empty? (select-iteration-team db-spec iteration-id team-id))
+    (insert-team-estimate! db-spec iteration-id team-id team-estimate)
+    (update-team-estimate! db-spec team-estimate iteration-id team-id)
+  ))
+
+(defn projectIterations
+  [projectId]
+  (project-iterations db-spec projectId))
