@@ -2,14 +2,12 @@
   (:require [yesql.core :refer [defqueries]]
             [clojure.string :as s]))
 
+
 (defqueries "sql/db.sql")
 
-(def db-spec {:subprotocol "mysql" :subname "//localhost:3306/xplanner?user=xplanner&password=xp"})
-
-
-(defn iterationStories
-  [iterationId]
-  (let [stories (iteration-stories db-spec iterationId)]
+(defn iteration-stories-map
+  [db iterationId]
+  (let [stories (iteration-stories db iterationId)]
     (zipmap (map :id stories) stories)))
 
 (def status-map {"p" "New"
@@ -52,21 +50,17 @@
           (recur remaining-teams (assoc result team-id (sum-units-by-status team (sum-units team team-result))))
           (recur remaining-teams (assoc result team-id (add-units-by-status team))))))))
 
-(defn iterationTeams
-  [iterationId]
-  (let [team-stories (iteration-teams db-spec iterationId)]
-      (reduce-team-stories team-stories)
+(defn iteration-teams-summary
+  [db iterationId]
+  (let [team-stories (iteration-teams db iterationId)]
+    (reduce-team-stories team-stories)
     )
   )
 
 (defn save-team-estimate
-  [iteration-id team-id team-estimate]
-  (println (empty? (select-iteration-team db-spec iteration-id team-id)))
-  (if (empty? (select-iteration-team db-spec iteration-id team-id))
-    (insert-team-estimate! db-spec iteration-id team-id team-estimate)
-    (update-team-estimate! db-spec team-estimate iteration-id team-id)
-  ))
-
-(defn projectIterations
-  [projectId]
-  (project-iterations db-spec projectId))
+  [db iteration-id team-id team-estimate]
+  (println (empty? (select-iteration-team db iteration-id team-id)))
+  (if (empty? (select-iteration-team db iteration-id team-id))
+    (insert-team-estimate! db iteration-id team-id team-estimate)
+    (update-team-estimate! db team-estimate iteration-id team-id)
+    ))

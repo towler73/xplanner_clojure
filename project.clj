@@ -20,6 +20,10 @@
                  [hiccup "1.0.5"]                           ; html rendering
                  [jayq "2.5.2"]
                  [reagent "0.5.0-alpha"]
+                 [com.stuartsierra/component "0.2.2"]
+                 [hikari-cp "1.1.1"]
+                 [org.slf4j/slf4j-simple "1.7.10"]
+                 [org.clojure/core.match "0.3.0-alpha4"]
                  [clj-dbcp      "0.8.1"]
                  [clj-liquibase "0.5.2"]]
 
@@ -44,4 +48,6 @@
                           }]
                 }
 
-  :profiles {:uberjar {:aot :all}})
+  :profiles {:uberjar {:aot :all}
+             :dev {:dependencies [[org.clojure/tools.namespace "0.2.7"]]
+                   :source-paths ["dev"]}})
