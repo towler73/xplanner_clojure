@@ -7,23 +7,24 @@
   :source-paths ["src/clj" "src/cljs"]
 
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2665"]
+                 [org.clojure/clojurescript "0.0-2985"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [lein-environ "1.0.0"]                     ; access environment vars
-                 [mysql/mysql-connector-java "5.1.6"]
+                 [mysql/mysql-connector-java "5.1.34"]
                  [yesql "0.4.0"]                            ; db access
-                 [com.taoensso/sente "1.2.0"]               ; web-sockets/ajax comms
+                 [com.taoensso/sente "1.3.0"]               ; web-sockets/ajax comms
                  [http-kit "2.1.19"]                        ; http-server
-                 [compojure "1.3.1"]                        ; routing
+                 [compojure "1.3.2"]                        ; routing
                  [ring "1.3.2"]
-                 [ring/ring-defaults "0.1.3"]               ; ring middleware
+                 [ring/ring-defaults "0.1.4"]               ; ring middleware
                  [hiccup "1.0.5"]                           ; html rendering
-                 [jayq "2.5.2"]
+                 [jayq "2.5.4"]
                  [reagent "0.5.0-alpha"]
-                 [com.stuartsierra/component "0.2.2"]
+                 [com.stuartsierra/component "0.2.3"]
                  [hikari-cp "1.1.1"]
                  [org.slf4j/slf4j-simple "1.7.10"]
                  [org.clojure/core.match "0.3.0-alpha4"]
+                 [buddy/buddy-auth "0.4.0"]
                  [clj-dbcp      "0.8.1"]
                  [clj-liquibase "0.5.2"]]
 
@@ -49,5 +50,5 @@
                 }
 
   :profiles {:uberjar {:aot :all}
-             :dev {:dependencies [[org.clojure/tools.namespace "0.2.7"]]
+             :dev {:dependencies [[org.clojure/tools.namespace "0.2.10"]]
                    :source-paths ["dev"]}})

@@ -80,6 +80,17 @@
 
 ;;react views
 
+(defn logged-in-as []
+  (let [user (atom {})]
+    (subscribe :load-project (fn [data] (chsk-send! [:dashboard/logged-in-user] 5000 (fn [cb-reply] (reset! user cb-reply)))))
+
+    (fn []
+      [:p.navbar-text.navbar-right "Signed in as " (:name @user)]
+      )
+    )
+
+  )
+
 
 (defn nav-bar []
   (let [iterations (atom {})
@@ -106,7 +117,9 @@
          [:ul.nav.navbar-nav
           [:li#stories-tab {:role "presentation" :class (when (= :stories @active-tab) "active")} [:a#stories {:href "#" :on-click #(publish-event :show-section {:section :stories})} "Stories"]]
           [:li#teams-tab {:role "presentation" :class (when (= :teams @active-tab) "active")} [:a#teams {:href "#" :on-click #(publish-event :show-section {:section :teams})} "Teams"]]
-          ]]]
+          ]
+         [logged-in-as]]
+        ]
        ])))
 
 (defn showStories [id]

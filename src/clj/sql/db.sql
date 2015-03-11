@@ -1,3 +1,13 @@
+-- name: authenticate-user
+select userid
+from person
+where userid = :userid and password = :password
+
+-- name: user
+select *
+from person
+where userid = :userid
+
 -- name: iteration-stories
 select s.*, tracker.initials as tracker_initials, customer.initials as customer_initials, developer.initials as developer_initials, t.name as team_name
 from story s left join person tracker on s.tracker_id = tracker.id

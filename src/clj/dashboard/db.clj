@@ -26,6 +26,15 @@
   (assoc team-result :estimated_hours (+ (:estimated_hours team-result 0) (:estimated_hours team 0)))
   )
 
+(defn team-summary-reduction
+  ([team] (team-summary-reduction {} team))
+  ([summary team]
+   (assoc summary :estimated_hours (+ (:estimated_hours summary 0) (:estimated_hours team 0)))
+   (let [status (status-map (:status team))
+         status-key (keyword (s/replace (s/lower-case status) " " "-"))]
+     (assoc summary status-key (+ (status-key summary 0) (:estimated_hours team 0))))
+    ))
+
 (defn sum-units-by-status
   [team team-result]
   (let [status (status-map (:status team))
@@ -41,14 +50,14 @@
 (defn reduce-team-stories
   ([teams] (reduce-team-stories teams (sorted-map)))
   ([teams result]
-    (let [team (first teams)
-          remaining-teams (rest teams)
-          team-id (:id team)]
-      (if-not team
-        result
-        (if-let [team-result (get result team-id)]
-          (recur remaining-teams (assoc result team-id (sum-units-by-status team (sum-units team team-result))))
-          (recur remaining-teams (assoc result team-id (add-units-by-status team))))))))
+   (let [team (first teams)
+         remaining-teams (rest teams)
+         team-id (:id team)]
+     (if-not team
+       result
+       (if-let [team-result (get result team-id)]
+         (recur remaining-teams (assoc result team-id (sum-units-by-status team (sum-units team team-result))))
+         (recur remaining-teams (assoc result team-id (add-units-by-status team))))))))
 
 (defn iteration-teams-summary
   [db iterationId]

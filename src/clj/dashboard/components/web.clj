@@ -6,7 +6,7 @@
 (defrecord WebServer [port server db sockets]
   component/Lifecycle
   (start [component]
-    (let [server (http-kit-server/run-server (create-ring-handler (:sockets component)) {:port port})]
+    (let [server (http-kit-server/run-server (create-ring-handler (:sockets component) (:db component)) {:port port})]
       (assoc component :server server)))
   (stop [component]
     (when server

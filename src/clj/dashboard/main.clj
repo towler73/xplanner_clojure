@@ -9,7 +9,7 @@
   (component/system-map
     :db (new-database "localhost")
     :sockets (component/using (new-channel-sockets) [:db])
-    :web-server (component/using (new-web-server 9000) [:sockets])))
+    :web-server (component/using (new-web-server 9000) [:sockets :db])))
 
 (defn -main [& args]
   (component/start (dashboard-system)))
