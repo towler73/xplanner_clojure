@@ -1,14 +1,16 @@
 (ns dashboard.db
   (:require [yesql.core :refer [defqueries]]
-            [clojure.string :as s]))
+            [clojure.string :as s]
+            [util.wiki :as wiki]))
 
 
 (defqueries "sql/db.sql")
 
 (defn iteration-stories-map
   [db iterationId]
-  (let [stories (iteration-stories db iterationId)]
-    (zipmap (map :id stories) stories)))
+  (let [stories (iteration-stories db iterationId)
+        stories-with-html (map #(assoc % :html_description (wiki/wiki->html (:description %))) stories)]
+    (zipmap (map :id stories) stories-with-html)))
 
 (def status-map {"p" "New"
                  "n" "Incomplete"

@@ -80,7 +80,8 @@
   (fn [{:as ev-msg :keys [id ?data ?reply-fn event ring-req]}]
     (logf "Event: %s" event)
     (if-not (authenticated? ring-req)
-      (?reply-fn {:unauthenticated-user event})
+      (when ?reply-fn
+        (?reply-fn {:unauthenticated-user event}))
       (match [id]
              [:dashboard/stories] (when ?reply-fn
                                     (println "data: " ?data)

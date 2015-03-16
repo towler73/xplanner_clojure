@@ -17,7 +17,7 @@
 (defn main []
   (html5
     (html
-      (header "YPlanner" (include-js "https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js" "js/app.js"))
+      (header "YPlanner" (include-js "https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js" "https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js" "js/app.js"))
       [:body
        [:div.container-fluid
         [:div.row
@@ -25,6 +25,7 @@
          [:div#iterationDetail.col-md-12]
          [:div#storiesDetail.col-md-12]
          [:div#teamsDetail.col-md-12]
+         [:div#content.col-md-12]
          ]]])))
 
 

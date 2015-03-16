@@ -8,6 +8,9 @@
     [taoensso.sente :as sente :refer (cb-success?)]
     [jayq.core :refer [$ on add-class remove-class hide show]]
     [reagent.core :as reagent :refer [atom]]
+    [reagent-modals.modals :as modals]
+    [hickory.core :as h]
+    [goog.string :as gstring]
     ))
 
 (enable-console-print!)
@@ -120,15 +123,21 @@
           ]
          [logged-in-as]]
         ]
-       ])))
+       ]
+      )))
 
-(defn showStories [id]
-  (println "show Stories called")
-  (go (>! publisher {:topic :hide-stories :id id}))
-  )
+
+(defn story-view [story]
+  [:div.modal-content
+   [:div.modal-header
+    [:button.close {:type "button" :data-dismiss "modal"} "×"]
+    [:h4.modal-title (:name story)]]
+   [:div.modal-body
+    [:p {:dangerouslySetInnerHTML {:__html (:html_description story)}}]]])
 
 (defn storyRow [story]
   [:tr
+   [:td [:button.btn.btn-default.btn-xs {:on-click #(modals/modal! (story-view @story))} [:span.glyphicon.glyphicon-eye-open]]]
    [:td (:id @story)]
    [:td (:orderno @story)]
    [:td (:ticket @story)]
@@ -138,8 +147,7 @@
    [:td (:tracker_initials @story)]
    [:td (:developer_initials @story)]
    [:td (:team_name @story)]
-   ;[:td [:button.btn.btn-primary.btn-xs {:type "submit" :on-click #(swap! story assoc :estimated_hours (inc (:estimated_hours @story)))} "Test"]]]
-   [:td [:button.btn.btn-primary.btn-xs {:type "submit" :on-click #(showStories (:id @story))} "Test"]]]
+   ]
   )
 
 (defn storyTable []
@@ -151,6 +159,7 @@
       [:table.table.table-condensed (when-not @visible? {:class "hidden"})
        [:thead
         [:tr
+         [:th "Action"]
          [:th "ID"]
          [:th "Order"]
          [:th "Ticket"]
@@ -160,7 +169,7 @@
          [:th "SA"]
          [:th "DEV"]
          [:th "Team"]
-         [:th "Action"]]]
+         ]]
        [:tbody
         (map (fn [story]
                ^{:key (:id story)} [storyRow (reagent/wrap story swap! stories assoc (:id story))])
@@ -181,9 +190,10 @@
     (fn [team]
       [:tr
        [:td [:button.btn.btn-default.btn-xs {:type "submit" :on-click #(do (reset! editing? true) (reset! editing-team-estimate-value (:team_estimate @team)) nil)} [:span.glyphicon.glyphicon-edit]]]
-       [:td (:id @team)]
        [:td (:name @team)]
        [:td (:cool_name @team)]
+       [:td "TBD"]
+       [:td "TBD"]
        (if @editing?
          [:td [:input#team-estimate-input.form-control.input-sm {:type        "text"
                                                              :value       @editing-team-estimate-value
@@ -230,15 +240,16 @@
        [:thead
         [:tr
          [:th "Actions"]
-         [:th "ID"]
-         [:th "Name"]
+         [:th "Team"]
          [:th "AKA"]
-         [:th "TE"]
-         [:th "SU"]
-         [:th "IP"]
-         [:th "IF"]
-         [:th "I"]
-         [:th "PQA"]
+         [:th "Epic"]
+         [:th "Leads"]
+         [:th.text-center "Planned"]
+         [:th.text-center "Current"]
+         [:th.text-center "In Progress"]
+         [:th.text-center "Issue Found"]
+         [:th.text-center "Implemented"]
+         [:th.text-center "Passed QA"]
          [:th "Progress"]
          ]
         ]
@@ -254,6 +265,9 @@
      [:div#storyTable
       [storyTable (reagent/wrap (:stories @iterationDetail) swap! iterationDetail assoc :stories)]]
      ]))
+
+(defn modal-dialog []
+    [modals/modal-window])
 
 
 ;; requests
@@ -280,6 +294,7 @@
   (reagent/render-component [nav-bar] (.getElementById js/document "nav-bar"))
   (reagent/render-component [storyTable] (.getElementById js/document "storiesDetail"))
   (reagent/render-component [teamsTable] (.getElementById js/document "teamsDetail"))
+  (reagent/render-component [modal-dialog] (.getElementById js/document "content"))
 
 
 
