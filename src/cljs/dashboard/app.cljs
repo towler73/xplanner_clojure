@@ -1,7 +1,7 @@
 (ns dashboard.app
   (:require-macros
-  [cljs.core.async.macros :as asyncm :refer (go go-loop)]
-  [jayq.macros :refer (ready)])
+    [cljs.core.async.macros :as asyncm :refer (go go-loop)]
+    [jayq.macros :refer (ready)])
   (:require
     ;; <other stuff>
     [cljs.core.async :as async :refer (<! >! put! chan pub sub unsub)]
@@ -23,8 +23,8 @@
 (defn publish-event
   ([topic-key] (publish-event topic-key {}))
   ([topic-key data]
-    (println topic-key data)
-    (go (>! publisher (assoc data :topic topic-key))))
+   (println topic-key data)
+   (go (>! publisher (assoc data :topic topic-key))))
   )
 
 (defn subscribe
@@ -151,10 +151,11 @@
   )
 
 (defn sort-story-map-by [story-map sort-key]
-  (into (sorted-map-by (fn [key1 key2]
-                         (compare (sort-key (get story-map key1))
-                                  (sort-key (get story-map key2)))))
-        story-map)
+  (sort-by #(sort-key (val %)) < story-map)
+  )
+
+(defn sortable-header [label key]
+  [:th [:a {:on-click #(publish-event :sort-stories {:sort-key key})} label]]
   )
 
 (defn storyTable []
@@ -162,20 +163,21 @@
         stories (atom {})]
     (subscribe :show-section #(if (= :stories (:section %)) (reset! visible? true) (reset! visible? false)))
     (subscribe :load-iteration (fn [data] (chsk-send! [:dashboard/stories data] 5000 (fn [cb-reply] (reset! stories (sort-story-map-by cb-reply :orderno))))))
+    (subscribe :sort-stories #(reset! stories (sort-story-map-by @stories (:sort-key %))))
     (fn []
       [:table.table.table-condensed (when-not @visible? {:class "hidden"})
        [:thead
         [:tr
          [:th "Action"]
-         [:th "ID"]
-         [:th "Order"]
-         [:th "Ticket"]
-         [:th "Story"]
-         [:th "Est"]
+         [sortable-header "ID" :id]
+         [sortable-header "Order" :orderno]
+         [sortable-header "Ticket" :ticket]
+         [sortable-header "Story" :name]
+         [sortable-header "Est" :estimated_hours]
          [:th "BZ"]
          [:th "SA"]
          [:th "DEV"]
-         [:th "Team"]
+         [sortable-header "Team" :team_name]
          ]]
        [:tbody
         (map (fn [story]
@@ -203,14 +205,14 @@
        [:td (str/join ", " (map :name (:team_leads @team)))]
        (if @editing?
          [:td [:input#team-estimate-input.form-control.input-sm {:type        "text"
-                                                             :value       @editing-team-estimate-value
-                                                             :on-change   #(reset! editing-team-estimate-value (-> % .-target .-value))
-                                                             :on-blur     save
-                                                             :on-key-down #(case (.-which %)
-                                                                            13 (save)
-                                                                            27 (cancel)
-                                                                            nil)
-                                                             }]]
+                                                                 :value       @editing-team-estimate-value
+                                                                 :on-change   #(reset! editing-team-estimate-value (-> % .-target .-value))
+                                                                 :on-blur     save
+                                                                 :on-key-down #(case (.-which %)
+                                                                                13 (save)
+                                                                                27 (cancel)
+                                                                                nil)
+                                                                 }]]
          [:td.text-center (:team_estimate @team)]
          )
        [:td.text-center (:estimated_hours @team)]
@@ -274,7 +276,7 @@
      ]))
 
 (defn modal-dialog []
-    [modals/modal-window])
+  [modals/modal-window])
 
 
 ;; requests

@@ -13,3 +13,7 @@
 #refresh-btn {
     margin-right: 20px;
 }
+
+th a {
+    cursor: pointer;
+}
