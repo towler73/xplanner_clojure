@@ -21,10 +21,19 @@ select * from iteration
 where id = :iteration_id
 
 -- name: iteration-teams
-select t.id, t.name, t.cool_name, s.estimated_hours, s.status, it.business_estimate, it.team_estimate, s.iteration_id
+select t.id, t.name, t.cool_name, s.estimated_hours, s.status, it.business_estimate, it.team_estimate, s.iteration_id, init.name as epic_name, init.short_name as epic_short_name
 from story s join team t on s.team_id = t.id
 left join iteration_team it on t.id = it.team_id and s.iteration_id = it.iteration_id
+left join initiative init on s.initiative_id = init.id
 where s.iteration_id = :iteration_id
+
+-- name: team-leads
+select t.id as team_id, p.*
+from team_member tm, team t, person p
+where tm.team_id = t.id
+and tm.person_id = p.id
+and tm.lead = 1
+order by t.id
 
 -- name: insert-team-estimate!
 insert into iteration_team (iteration_id, team_id, team_estimate)

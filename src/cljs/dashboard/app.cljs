@@ -9,9 +9,7 @@
     [jayq.core :refer [$ on add-class remove-class hide show]]
     [reagent.core :as reagent :refer [atom]]
     [reagent-modals.modals :as modals]
-    [hickory.core :as h]
-    [goog.string :as gstring]
-    ))
+    [clojure.string :as str]))
 
 (enable-console-print!)
 
@@ -117,11 +115,13 @@
             (map (fn [iteration]
                    ^{:key (:id iteration)} [:option {:value (:id iteration)} (:name iteration)])
                  @iterations)]]]
+         [:button#refresh-btn.btn.btn-primary.navbar-btn.navbar-left {:type button :on-click #(publish-event :load-iteration {:iteration-id @current-iteration-id})} [:span.glyphicon.glyphicon-refresh]]
          [:ul.nav.navbar-nav
           [:li#stories-tab {:role "presentation" :class (when (= :stories @active-tab) "active")} [:a#stories {:href "#" :on-click #(publish-event :show-section {:section :stories})} "Stories"]]
           [:li#teams-tab {:role "presentation" :class (when (= :teams @active-tab) "active")} [:a#teams {:href "#" :on-click #(publish-event :show-section {:section :teams})} "Teams"]]
           ]
-         [logged-in-as]]
+         [logged-in-as]
+         ]
         ]
        ]
       )))
@@ -150,11 +150,18 @@
    ]
   )
 
+(defn sort-story-map-by [story-map sort-key]
+  (into (sorted-map-by (fn [key1 key2]
+                         (compare (sort-key (get story-map key1))
+                                  (sort-key (get story-map key2)))))
+        story-map)
+  )
+
 (defn storyTable []
   (let [visible? (atom true)
         stories (atom {})]
     (subscribe :show-section #(if (= :stories (:section %)) (reset! visible? true) (reset! visible? false)))
-    (subscribe :load-iteration (fn [data] (chsk-send! [:dashboard/stories data] 5000 (fn [cb-reply] (reset! stories cb-reply)))))
+    (subscribe :load-iteration (fn [data] (chsk-send! [:dashboard/stories data] 5000 (fn [cb-reply] (reset! stories (sort-story-map-by cb-reply :orderno))))))
     (fn []
       [:table.table.table-condensed (when-not @visible? {:class "hidden"})
        [:thead
@@ -192,8 +199,8 @@
        [:td [:button.btn.btn-default.btn-xs {:type "submit" :on-click #(do (reset! editing? true) (reset! editing-team-estimate-value (:team_estimate @team)) nil)} [:span.glyphicon.glyphicon-edit]]]
        [:td (:name @team)]
        [:td (:cool_name @team)]
-       [:td "TBD"]
-       [:td "TBD"]
+       [:td (str/join "," (:epics @team))]
+       [:td (str/join ", " (map :name (:team_leads @team)))]
        (if @editing?
          [:td [:input#team-estimate-input.form-control.input-sm {:type        "text"
                                                              :value       @editing-team-estimate-value
@@ -242,7 +249,7 @@
          [:th "Actions"]
          [:th "Team"]
          [:th "AKA"]
-         [:th "Epic"]
+         [:th "Epics"]
          [:th "Leads"]
          [:th.text-center "Planned"]
          [:th.text-center "Current"]
@@ -294,30 +301,5 @@
   (reagent/render-component [nav-bar] (.getElementById js/document "nav-bar"))
   (reagent/render-component [storyTable] (.getElementById js/document "storiesDetail"))
   (reagent/render-component [teamsTable] (.getElementById js/document "teamsDetail"))
-  (reagent/render-component [modal-dialog] (.getElementById js/document "content"))
-
-
-
-  ;(on ($ :#teams) :click
-  ;    (fn []
-  ;      ;(swap! iterationDetail reset! :stories {1 {:id 1 :name "test" :estimated_hours 2} 2 {:id 2 :name "AQR" :estimated_hours 2}})
-  ;
-  ;      ;(chsk-send! [:dashboard/stories {:iteration-id 668460}] 5000 (fn [cb-reply]
-  ;      ;                                                               (reset! iterationDetail cb-reply)))
-  ;
-  ;      ;(println "detail" @iterationDetail)
-  ;      (remove-class ($ :li#stories-tab) :active)
-  ;      (add-class ($ :li#teams-tab) :active)
-  ;      (hide ($ :#storiesDetail) 500 #(show ($ :#teamsDetail) 500))
-  ;      (updateIterationTeams)
-  ;      ;(chsk-send! [:example/button1 {:had-a-callback? "nope"}] 5000 (fn [cb-reply] (println "reply: " cb-reply)))
-  ;      ))
-  ;
-  ;(on ($ :#stories) :click
-  ;    (fn []
-  ;      (remove-class ($ :li#teams-tab) :active)
-  ;      (add-class ($ :li#stories-tab) :active)
-  ;      (hide ($ :#teamsDetail) 500 #(show ($ :#storiesDetail) 500))
-  ;      ))
-  )
+  (reagent/render-component [modal-dialog] (.getElementById js/document "content")))
 

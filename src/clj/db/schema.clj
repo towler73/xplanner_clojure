@@ -14,8 +14,12 @@
                                                      [:business_estimate :int]
                                                      [:team_estimate :int]])]])
 
+(def add-team-lead-flag ["2" "bmorgan"
+                         [(ch/add-columns :team_member [[:lead [:tinyint 1]]])]])
+
 (defchangelog dashboard-changelog "db.schema"
-              [create-iteration-team-table])
+              [create-iteration-team-table
+               add-team-lead-flag])
 
 (def ds (cp/make-datasource :mysql {:host "localhost" :database "xplanner" :user "root" :password "l4cr0ss3"}))
 

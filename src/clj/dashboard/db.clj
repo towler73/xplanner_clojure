@@ -1,7 +1,8 @@
 (ns dashboard.db
   (:require [yesql.core :refer [defqueries]]
             [clojure.string :as s]
-            [util.wiki :as wiki]))
+            [util.wiki :as wiki]
+            [clojure.string :as str]))
 
 
 (defqueries "sql/db.sql")
@@ -23,48 +24,30 @@
                  "f" "Issue Found"
                  "v" "Release Ready"})
 
-(defn sum-units
-  [team team-result]
-  (assoc team-result :estimated_hours (+ (:estimated_hours team-result 0) (:estimated_hours team 0)))
+(defn team-lead-map [db]
+  (group-by :team_id (team-leads db))
   )
 
 (defn team-summary-reduction
   ([team] (team-summary-reduction {} team))
   ([summary team]
-   (assoc summary :estimated_hours (+ (:estimated_hours summary 0) (:estimated_hours team 0)))
    (let [status (status-map (:status team))
          status-key (keyword (s/replace (s/lower-case status) " " "-"))]
-     (assoc summary status-key (+ (status-key summary 0) (:estimated_hours team 0))))
-    ))
-
-(defn sum-units-by-status
-  [team team-result]
-  (let [status (status-map (:status team))
-        status-key (keyword (s/replace (s/lower-case status) " " "-"))]
-    (assoc team-result status-key (+ (status-key team-result 0) (:estimated_hours team 0))))
+     (->
+       summary
+       (conj (select-keys team [:id :name :cool_name :iteration_id :team_estimate]))
+       (assoc :epics (conj (get summary :epics (hash-set)) (:epic_name team)))
+       (assoc :estimated_hours (+ (:estimated_hours summary 0) (:estimated_hours team 0)))
+       (assoc status-key (+ (status-key summary 0) (:estimated_hours team 0))))
+     ))
   )
-
-(defn add-units-by-status
-  [team]
-  (dissoc (merge team (sum-units-by-status team {})) :status)
-  )
-
-(defn reduce-team-stories
-  ([teams] (reduce-team-stories teams (sorted-map)))
-  ([teams result]
-   (let [team (first teams)
-         remaining-teams (rest teams)
-         team-id (:id team)]
-     (if-not team
-       result
-       (if-let [team-result (get result team-id)]
-         (recur remaining-teams (assoc result team-id (sum-units-by-status team (sum-units team team-result))))
-         (recur remaining-teams (assoc result team-id (add-units-by-status team))))))))
 
 (defn iteration-teams-summary
   [db iterationId]
-  (let [team-stories (iteration-teams db iterationId)]
-    (reduce-team-stories team-stories)
+  (let [team-stories (iteration-teams db iterationId)
+        team-map (group-by :id (sort-by :id team-stories))
+        team-leads (team-lead-map db)]
+    (into {} (for [[k v] team-map] [k (assoc (reduce team-summary-reduction {} v) :team_leads (get team-leads k))]))
     )
   )
 
