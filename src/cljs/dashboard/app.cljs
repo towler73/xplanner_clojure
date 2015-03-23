@@ -117,7 +117,7 @@
       [:nav.navbar.navbar-default
        [:div.container-fluid
         [:div.navbar-header
-         [:a.navbar-brand {:href "#"} "Xplanner" [:sup 2R]]]
+         [:a.navbar-brand {:href "#"} "Xplanner" [:sup "2"]]]
         [:div.collapse.navbar-collapse
          [:form.navbar-form.navbar-left
           [:div.form-group
