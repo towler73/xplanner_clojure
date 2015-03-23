@@ -9,7 +9,11 @@
     [jayq.core :refer [$ on add-class remove-class hide show]]
     [reagent.core :as reagent :refer [atom]]
     [reagent-modals.modals :as modals]
-    [clojure.string :as str]))
+    [clojure.string :as str]
+    [secretary.core :as secretary :refer-macros [defroute]]
+    [goog.events :as events]
+    [goog.history.EventType :as EventType])
+  (:import goog.History))
 
 (enable-console-print!)
 
@@ -77,6 +81,11 @@
   ;; Add your (defmethod handle-event-msg! <event-id> [ev-msg] <body>)s here...
   )
 
+;; Global state
+(def app-state (atom {}))
+
+(defn put-state! [k v]
+  (swap! app-state assoc k v))
 
 
 ;;react views
@@ -98,7 +107,8 @@
         current-iteration-id (atom 0)
         active-tab (atom :stories)]
     (subscribe :load-iteration #(reset! current-iteration-id (:iteration-id %)))
-    (subscribe :show-section #(reset! active-tab (:section %)))
+    (subscribe :show-section (fn [data]
+                               (reset! active-tab (:section data))))
     (subscribe :load-project (fn [data] (chsk-send! [:dashboard/project-iterations data] 5000 (fn [cb-reply]
                                                                                                 (reset! iterations (:iterations cb-reply))
                                                                                                 (reset! current-iteration-id (:current-iteration-id cb-reply))
@@ -107,18 +117,19 @@
       [:nav.navbar.navbar-default
        [:div.container-fluid
         [:div.navbar-header
-         [:a.navbar-brand {:href "#"} "Yplanner"]]
+         [:a.navbar-brand {:href "#"} "Xplanner" [:sup 2R]]]
         [:div.collapse.navbar-collapse
          [:form.navbar-form.navbar-left
           [:div.form-group
-           [:select.form-control {:value @current-iteration-id :on-change #(publish-event :load-iteration {:iteration-id (-> % .-target .-value)})}
+           ;[:select.form-control {:value @current-iteration-id :on-change #(publish-event :load-iteration {:iteration-id (-> % .-target .-value)})}
+           [:select.form-control {:value @current-iteration-id :on-change #(set! (.-location js/window) (section-iteration-route {:page (name (:current-page-key @app-state)) :id (-> % .-target .-value)}))}
             (map (fn [iteration]
                    ^{:key (:id iteration)} [:option {:value (:id iteration)} (:name iteration)])
                  @iterations)]]]
          [:button#refresh-btn.btn.btn-primary.navbar-btn.navbar-left {:type button :on-click #(publish-event :load-iteration {:iteration-id @current-iteration-id})} [:span.glyphicon.glyphicon-refresh]]
          [:ul.nav.navbar-nav
-          [:li#stories-tab {:role "presentation" :class (when (= :stories @active-tab) "active")} [:a#stories {:href "#" :on-click #(publish-event :show-section {:section :stories})} "Stories"]]
-          [:li#teams-tab {:role "presentation" :class (when (= :teams @active-tab) "active")} [:a#teams {:href "#" :on-click #(publish-event :show-section {:section :teams})} "Teams"]]
+          [:li#stories-tab {:role "presentation" :class (when (= :stories @active-tab) "active")} [:a#stories {:href (str "#/stories/iteration/" @current-iteration-id) :on-click #(publish-event :show-section {:section :stories})} "Stories"]]
+          [:li#teams-tab {:role "presentation" :class (when (= :teams @active-tab) "active")} [:a#teams {:href (str "#/teams/iteration/" @current-iteration-id) :on-click #(publish-event :show-section {:section :teams})} "Teams"]]
           ]
          [logged-in-as]
          ]
@@ -158,14 +169,16 @@
   [:th [:a {:on-click #(publish-event :sort-stories {:sort-key key})} label]]
   )
 
-(defn storyTable []
-  (let [visible? (atom true)
-        stories (atom {})]
-    (subscribe :show-section #(if (= :stories (:section %)) (reset! visible? true) (reset! visible? false)))
-    (subscribe :load-iteration (fn [data] (chsk-send! [:dashboard/stories data] 5000 (fn [cb-reply] (reset! stories (sort-story-map-by cb-reply :orderno))))))
+(defn storyTable [iteration-id]
+  (let [stories (atom {})
+        load-stories (fn [data] (chsk-send! [:dashboard/stories data] 5000 (fn [cb-reply] (reset! stories (sort-story-map-by cb-reply :orderno)))))]
+    (when iteration-id
+      (load-stories {:iteration-id iteration-id}))
+
+    (subscribe :load-iteration load-stories)
     (subscribe :sort-stories #(reset! stories (sort-story-map-by @stories (:sort-key %))))
-    (fn []
-      [:table.table.table-condensed (when-not @visible? {:class "hidden"})
+    (fn [iteration-id]
+      [:table.table.table-condensed
        [:thead
         [:tr
          [:th "Action"]
@@ -239,13 +252,17 @@
                )
              ]]])))
 
-(defn teamsTable []
-  (let [visible? (atom false)
-        teams (atom {})]
-    (subscribe :show-section #(if (= :teams (:section %)) (reset! visible? true) (reset! visible? false)))
-    (subscribe :load-iteration (fn [data] (chsk-send! [:dashboard/iteration-teams data] 5000 (fn [cb-reply] (reset! teams cb-reply)))))
-    (fn []
-      [:table.table.table-condensed (when-not @visible? {:class "hidden"})
+(defn teamsTable [iteration-id]
+  (let [teams (atom {})
+        load-teams (fn [data] (chsk-send! [:dashboard/iteration-teams data] 5000 (fn [cb-reply] (reset! teams cb-reply))))]
+
+    (when iteration-id
+      (load-teams {:iteration-id iteration-id}))
+
+    (subscribe :load-iteration load-teams)
+
+    (fn [iteration-id]
+      [:table.table.table-condensed
        [:thead
         [:tr
          [:th "Actions"]
@@ -268,23 +285,55 @@
              (vals @teams))
         ]])))
 
-(defn iteration []
-  (fn []
-    [:div.col-md-12
-     [:div#storyTable
-      [storyTable (reagent/wrap (:stories @iterationDetail) swap! iterationDetail assoc :stories)]]
-     ]))
 
 (defn modal-dialog []
   [modals/modal-window])
 
 
-;; requests
-(defn updateIterationTeams []
-  (chsk-send! [:dashboard/iteration-teams {:iteration-id 668460}] 5000 (fn [cb-reply]
-                                                                         (reset! teams cb-reply)))
+;; Page View
+(def page-map {:stories storyTable
+               :teams   teamsTable})
 
-  )
+(defn current-page-will-mount []
+  (put-state! :current-page [storyTable nil])
+  (put-state! :current-page-key :stories))
+
+(defn current-page-render []
+  [@app-state :current-page])
+
+(defn current-page []
+  (reagent/create-class {:component-will-mount current-page-will-mount :render current-page-render}))
+
+;; routing
+
+(secretary/set-config! :prefix "#")
+
+(defroute section-iteration-route "/:page/iteration/:id" [page id]
+          (let [current-page-key (:current-page-key @app-state)
+                page-key (keyword page)]
+
+            (if-not (= current-page-key page-key)
+              (do
+                (put-state! :current-page-key page-key)
+                (put-state! :current-page [(page-key page-map) id]))
+              (publish-event :load-iteration {:iteration-id id})
+              )
+
+            )
+          )
+
+;; browser history
+
+(defn hook-browser-navigation! []
+  (doto (History.)
+    (events/listen
+      EventType/NAVIGATE
+      (fn [event]
+        (secretary/dispatch! (.-token event))))
+    (.setEnabled true)))
+
+(hook-browser-navigation!)
+
 
 ;;init
 (def router_ (reagent/atom nil))
@@ -301,7 +350,7 @@
 
 (ready
   (reagent/render-component [nav-bar] (.getElementById js/document "nav-bar"))
-  (reagent/render-component [storyTable] (.getElementById js/document "storiesDetail"))
-  (reagent/render-component [teamsTable] (.getElementById js/document "teamsDetail"))
+  (reagent/render-component [current-page] (.getElementById js/document "storiesDetail"))
+  ;(reagent/render-component [teamsTable] (.getElementById js/document "teamsDetail"))
   (reagent/render-component [modal-dialog] (.getElementById js/document "content")))
 

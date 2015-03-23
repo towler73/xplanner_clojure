@@ -32,6 +32,7 @@
                  [org.xwiki.rendering/xwiki-rendering-syntax-xhtml "6.4.2"]
                  [org.xwiki.commons/xwiki-commons-component-default "6.4.2"]
                  [clojure-tools "1.1.3"]
+                 [secretary "1.2.2"]
                  [clj-dbcp      "0.8.1"]
                  [clj-liquibase "0.5.2"]]
 
