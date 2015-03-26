@@ -2,40 +2,28 @@
   (:require [clojure.test :refer :all]
             [dashboard.db :refer :all]))
 
-(deftest sum-units-test
-  (is (= {:estimated_hours 10} (sum-units {:estimated_hours 5} {:estimated_hours 5})))
-  (is (= {:estimated_hours 5} (sum-units {:estimated_hours 5} {})))
-  (is (= {:estimated_hours 5} (sum-units {} {:estimated_hours 5}))))
-
-(deftest sum-units-by-status-test
-  (is (= {:ready-for-dev 5} (sum-units-by-status {:estimated_hours 5 :status "e"} {})))
-  (is (= {:ready-for-dev 5 :implemented 4 :passed-qa 6}
-         (sum-units-by-status {:estimated_hours 2 :status "c"} {:ready-for-dev 5 :implemented 2 :passed-qa 6})))
-  (is (= {:ready-for-dev 5 :implemented 2 :passed-qa 6}
-         (sum-units-by-status {:estimated_hours 2 :status "c"} {:ready-for-dev 5 :passed-qa 6})))
-  (testing "merging original with results of sum-units-by-status"
-    (let [team {:id 1 :estimated_hours 4 :status "c"}]
-      (is (= {:id 1 :estimated_hours 4 :implemented 4} (add-units-by-status team)))
-      )
-    )
-
+(deftest team-summary-first-team-test
+  (is (= {:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epics #{"Epic 1"} :estimated_hours 4 :in-progress 4}
+        (team-summary-reduction {} {:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epic_name "Epic 1" :estimated_hours 4 :status "w"})))
   )
 
-(deftest sum-units-and-sum-status-test
-  (let [team {:id 1 :estimated_hours 4 :status "c"}]
-    (is (= {:estimated_hours 4 :implemented 4} (sum-units-by-status team (sum-units team {}))))
-    (is (= {:id 1 :estimated_hours 8 :implemented 8} (sum-units-by-status team (sum-units team {:id 1 :estimated_hours 4 :implemented 4}))))
-    )
+(deftest team-summary-multiple-teams-same-epic-test
+  (is (= {:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epics #{"Epic 1"} :estimated_hours 8 :in-progress 8}
+         (team-summary-reduction {:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epics #{"Epic 1"} :estimated_hours 4 :in-progress 4} {:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epic_name "Epic 1" :estimated_hours 4 :status "w"})))
   )
 
-(deftest group-by-team
-  (is (= {1 {:id 1 :estimated_hours 6 :ready-for-dev 1 :implemented 5}
-          2 {:id 2 :estimated_hours 4 :passed-qa 4}}
-         (reduce-team-stories (list {:id 1 :estimated_hours 1 :status "e"}
-                                    {:id 1 :estimated_hours 1 :status "c"}
-                                    {:id 1 :estimated_hours 4 :status "c"}
-                                    {:id 2 :estimated_hours 1 :status "q"}
-                                    {:id 2 :estimated_hours 3 :status "q"}
-                                    )))))
+(deftest team-summary-multiple-teams-different-epic-test
+  (is (= {:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epics #{"Epic 2" "Epic 1"} :estimated_hours 8 :in-progress 4 :implemented 4}
+         (team-summary-reduction {:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epics #{"Epic 1"} :estimated_hours 4 :in-progress 4} {:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epic_name "Epic 2" :estimated_hours 4 :status "c"})))
+  )
 
+(deftest summarzie-team-data-test
+  (is (= {1 {:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epics #{"Epic 2" "Epic 1"} :estimated_hours 8 :in-progress 4 :implemented 4 :team_leads "John Smith"}
+          2 {:id 2 :name "Team 2" :cool_name "Cool Name 2" :iteration_id 10 :team_estimate 100 :epics #{"Epic 1"} :estimated_hours 4 :passed-qa 4 :team_leads "Sally Hall, Larry Long"}}
+         (summarize-team-data {1 [{:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epic_name "Epic 1" :estimated_hours 4 :status "w"}
+                                  {:id 1 :name "Team 1" :cool_name "Cool Name 1" :iteration_id 10 :team_estimate 100 :epic_name "Epic 2" :estimated_hours 4 :status "c"}]
+                               2 [{:id 2 :name "Team 2" :cool_name "Cool Name 2" :iteration_id 10 :team_estimate 100 :epic_name "Epic 1" :estimated_hours 4 :status "q"}]}
+                              {1 "John Smith"
+                               2 "Sally Hall, Larry Long"})))
+  )
 

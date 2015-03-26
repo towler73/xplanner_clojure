@@ -42,12 +42,17 @@
      ))
   )
 
+(defn summarize-team-data
+  [team-map team-leads]
+  (into {} (for [[k v] team-map] [k (assoc (reduce team-summary-reduction {} v) :team_leads (get team-leads k))]))
+  )
+
 (defn iteration-teams-summary
   [db iterationId]
   (let [team-stories (iteration-teams db iterationId)
         team-map (group-by :id (sort-by :id team-stories))
         team-leads (team-lead-map db)]
-    (into {} (for [[k v] team-map] [k (assoc (reduce team-summary-reduction {} v) :team_leads (get team-leads k))]))
+    (summarize-team-data team-map team-leads)
     )
   )
 

@@ -161,36 +161,38 @@
    ]
   )
 
-(defn sort-story-map-by [story-map sort-key]
-  (sort-by #(sort-key (val %)) < story-map)
+(defn sort-map-by [data-map sort-key]
+  (sort-by #(sort-key (val %)) < data-map)
   )
 
-(defn sortable-header [label key]
-  [:th [:a {:on-click #(publish-event :sort-stories {:sort-key key})} label]]
+(defn sortable-header [sort-fn label key]
+  [:th [:a {:on-click #(sort-fn key)} label]]
   )
 
 (defn storyTable [iteration-id]
   (let [stories (atom {})
-        load-stories (fn [data] (chsk-send! [:dashboard/stories data] 5000 (fn [cb-reply] (reset! stories (sort-story-map-by cb-reply :orderno)))))]
+        load-stories (fn [data] (chsk-send! [:dashboard/stories data] 5000 (fn [cb-reply] (reset! stories (sort-map-by cb-reply :orderno)))))
+        sort-fn (fn [sort-key] (reset! stories (sort-map-by @stories sort-key)))
+        story-sortable-header (partial sortable-header sort-fn)]
     (when iteration-id
       (load-stories {:iteration-id iteration-id}))
 
     (subscribe :load-iteration load-stories)
-    (subscribe :sort-stories #(reset! stories (sort-story-map-by @stories (:sort-key %))))
+
     (fn [iteration-id]
       [:table.table.table-condensed
        [:thead
         [:tr
          [:th "Action"]
-         [sortable-header "ID" :id]
-         [sortable-header "Order" :orderno]
-         [sortable-header "Ticket" :ticket]
-         [sortable-header "Story" :name]
-         [sortable-header "Est" :estimated_hours]
+         [story-sortable-header "ID" :id]
+         [story-sortable-header "Order" :orderno]
+         [story-sortable-header "Ticket" :ticket]
+         [story-sortable-header "Story" :name]
+         [story-sortable-header "Est" :estimated_hours]
          [:th "BZ"]
          [:th "SA"]
          [:th "DEV"]
-         [sortable-header "Team" :team_name]
+         [story-sortable-header "Team" :team_name]
          ]]
        [:tbody
         (map (fn [story]
@@ -254,7 +256,10 @@
 
 (defn teamsTable [iteration-id]
   (let [teams (atom {})
-        load-teams (fn [data] (chsk-send! [:dashboard/iteration-teams data] 5000 (fn [cb-reply] (reset! teams cb-reply))))]
+        load-teams (fn [data] (chsk-send! [:dashboard/iteration-teams data] 5000 (fn [cb-reply] (reset! teams (sort-map-by cb-reply :name)))))
+        sort-fn (fn [sort-key] (reset! teams (sort-map-by @teams sort-key)))
+        team-sortable-header (partial sortable-header sort-fn)
+        ]
 
     (when iteration-id
       (load-teams {:iteration-id iteration-id}))
@@ -266,8 +271,8 @@
        [:thead
         [:tr
          [:th "Actions"]
-         [:th "Team"]
-         [:th "AKA"]
+         (team-sortable-header "Team" :name)
+         (team-sortable-header "AKA" :cool_name)
          [:th "Epics"]
          [:th "Leads"]
          [:th.text-center "Planned"]

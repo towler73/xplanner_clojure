@@ -17,7 +17,7 @@
 (defn main []
   (html5
     (html
-      (header "YPlanner" (include-js "https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js" "https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js" "js/app.js"))
+      (header "XPlanner 2" (include-js "https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js" "https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js" "js/app.js"))
       [:body
        [:div.container-fluid
         [:div.row
@@ -32,13 +32,13 @@
 (defn login []
   (html5
     (html
-      (header "YPlanner Login" nil)
+      (header "XPlanner 2 Login" nil)
       [:body
        [:div.container-fluid
         [:div.row
          [:div#login.col-md-4.col-md-offset-4
           [:div#login-panel.panel.panel-info
-           [:div.panel-heading "YPlanner Login"]
+           [:div.panel-heading "XPlanner" [:sup "2"] " Login"]
            [:div.panel-body
             [:form {:action "login" :method "post"}
              (hidden-field "csrf-token" *anti-forgery-token*)
