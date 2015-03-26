@@ -92,7 +92,7 @@
              [:dashboard/project-iterations] (when ?reply-fn
                                                (println "data: " ?data)
                                                ;todo fix current iteration id
-                                               (?reply-fn {:iterations (db/project-iterations db (:project-id ?data)) :current-iteration-id 668460}))
+                                               (?reply-fn {:iterations (db/project-iterations db (:project-id ?data)) :current-iteration-id (:id (db/initial-iteration db (:project-id ?data)))}))
              [:dashboard/save-team-estimate] (do (db/save-team-estimate db (:iteration_id ?data) (:id ?data) (:team_estimate ?data))
                                                  (when ?reply-fn
                                                    (?reply-fn {:saved? true})))

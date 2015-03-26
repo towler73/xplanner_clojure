@@ -4,6 +4,8 @@
             [util.wiki :as wiki]
             [clojure.string :as str]))
 
+;; TODO Deal with projects
+(def default-project-id 298)
 
 (defqueries "sql/db.sql")
 
@@ -13,9 +15,11 @@
         stories-with-html (map #(assoc % :html_description (wiki/wiki->html (:description %))) stories)]
     (zipmap (map :id stories) stories-with-html)))
 
-(defn initial-iteration [db]
-
-  )
+(defn initial-iteration [db project-id]
+  (if-let [current (seq (current-iteration db project-id))]
+    (first current)
+    (first (last-iteration db project-id))
+    ))
 
 (def status-map {"p" "New"
                  "n" "Incomplete"

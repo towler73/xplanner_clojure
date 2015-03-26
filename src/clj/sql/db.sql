@@ -32,10 +32,13 @@ where id = :iteration_id
 -- name: current-iteration
 select * from iteration
 where start_date <= now() and end_date >= now()
+and project_id = :project_id
+limit 0,1
 
 -- name: last-iteration
-select * from iteration
-order by id desc
+select * from iteration i
+where i.project_id = :project_id
+and i.start_date = (select max(start_date) from iteration ii where i.project_id = ii.project_id)
 limit 0,1
 
 -- name: iteration-teams
