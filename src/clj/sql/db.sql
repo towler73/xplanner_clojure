@@ -9,16 +9,34 @@ from person
 where userid = :userid
 
 -- name: iteration-stories
-select s.*, tracker.initials as tracker_initials, customer.initials as customer_initials, developer.initials as developer_initials, t.name as team_name
+select s.*, tracker.initials as tracker_initials,
+            customer.initials as customer_initials,
+            developer.initials as developer_initials,
+            t.name as team_name,
+            i.short_name as epic_name,
+            c.short_name as business_project_name,
+            r.name as release_name
 from story s left join person tracker on s.tracker_id = tracker.id
     left join person customer on s.customer_id = customer.id
     left join person developer on s.developer_id = developer.id
     left join team t on s.team_id = t.id
+    left join initiative i on s.initiative_id = i.id
+    left join client c on i.client_id = c.id
+    left join releases r on s.release_id = r.id
 where iteration_id = :iteration_id
 
 -- name: iteration
 select * from iteration
 where id = :iteration_id
+
+-- name: current-iteration
+select * from iteration
+where start_date <= now() and end_date >= now()
+
+-- name: last-iteration
+select * from iteration
+order by id desc
+limit 0,1
 
 -- name: iteration-teams
 select t.id, t.name, t.cool_name, s.estimated_hours, s.status, it.business_estimate, it.team_estimate, s.iteration_id, init.name as epic_name, init.short_name as epic_short_name

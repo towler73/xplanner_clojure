@@ -13,6 +13,10 @@
         stories-with-html (map #(assoc % :html_description (wiki/wiki->html (:description %))) stories)]
     (zipmap (map :id stories) stories-with-html)))
 
+(defn initial-iteration [db]
+
+  )
+
 (def status-map {"p" "New"
                  "n" "Incomplete"
                  "r" "Ready for Review"
