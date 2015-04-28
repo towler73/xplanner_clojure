@@ -7,7 +7,7 @@
     [ring.util.response :refer [response redirect redirect-after-post]]
     [clojure.core.match :refer [match]]
     [dashboard.templates :as templates]
-    [dashboard.db :as db]
+    [dashboard.db :as data]
     [clojure.core.async :as async :refer (<! <!! >! >!! put! chan go go-loop)]
     [buddy.auth.backends.session :refer [session-backend]]
     [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
@@ -35,14 +35,15 @@
     )
   )
 
-
 (defn login! [req db]
   (let [username (get-in req [:form-params "username"])
         password (get-in req [:form-params "password"])
         session (:session req)]
-    (if (seq (db/user db username))
-      (let [session (assoc session :identity (keyword username))]
-        (-> (redirect "/") (assoc :session session)))
+    (if (seq (data/user db username))
+      (let [session (assoc session :identity (keyword username))
+            default-project-id 298
+            default-iteration-id (:id (data/initial-iteration db default-project-id))]
+        (-> (redirect (str "/#/project/" default-project-id "/iteration/" default-iteration-id "/stories")) (assoc :session session)))
       (templates/login)
       )
     )
@@ -85,20 +86,20 @@
       (match [id]
              [:dashboard/stories] (when ?reply-fn
                                     (println "data: " ?data)
-                                    (?reply-fn (db/iteration-stories-map db (:iteration-id ?data))))
+                                    (?reply-fn (data/iteration-stories-map db (:iteration-id ?data))))
              [:dashboard/iteration-teams] (when ?reply-fn
                                             (println "data: " ?data)
-                                            (?reply-fn (db/iteration-teams-summary db (:iteration-id ?data))))
+                                            (?reply-fn (data/iteration-teams-summary db (:iteration-id ?data))))
              [:dashboard/project-iterations] (when ?reply-fn
                                                (println "data: " ?data)
                                                ;todo fix current iteration id
-                                               (?reply-fn {:iterations (db/project-iterations db (:project-id ?data)) :current-iteration-id (:id (db/initial-iteration db (:project-id ?data)))}))
-             [:dashboard/save-team-estimate] (do (db/save-team-estimate db (:iteration_id ?data) (:id ?data) (:team_estimate ?data))
+                                               (?reply-fn {:iterations (data/project-iterations db (:project-id ?data)) :current-iteration-id (:id (data/initial-iteration db (:project-id ?data)))}))
+             [:dashboard/save-team-estimate] (do (data/save-team-estimate db (:iteration_id ?data) (:id ?data) (:team_estimate ?data))
                                                  (when ?reply-fn
                                                    (?reply-fn {:saved? true})))
              [:dashboard/logged-in-user] (do
-                                           (println (first (db/user db (name (:identity ring-req)))))
-                                           (?reply-fn (first (db/user db (name (:identity ring-req))))))
+                                           (println (first (data/user db (name (:identity ring-req)))))
+                                           (?reply-fn (first (data/user db (name (:identity ring-req))))))
              :else (when ?reply-fn
                      (?reply-fn {:umatched-event-as-echoed-from-from-server event})))))
   )

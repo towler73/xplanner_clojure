@@ -19,7 +19,6 @@
 
 ;; event management
 
-
 (def publisher (chan))
 
 (def publication (pub publisher #(:topic %)))
@@ -40,6 +39,14 @@
                (do-this data))
              (recur)))
   )
+
+;; Global state
+(def init-state (atom {:initialized false}))
+(def app-state (atom {:current-page {:key nil page nil} :current-project-id nil :current-iteration-id nil}))
+
+(defn put-state! [k v]
+  (swap! app-state assoc k v))
+
 
 ;; Asnyc connection
 
@@ -72,7 +79,14 @@
       (println "Channel socket successfully established!")
       (println "Channel socket state change: " ?data))
     (when (= (get ?data :first-open?) true)
-      (publish-event :load-project {:project-id 298})))
+      (swap! init-state assoc :initialized true)
+      (println "init-state " @init-state)
+      (when-let [data (:initialization-data @init-state)]
+        (do
+          (publish-event :change-page-state data)
+          (swap! init-state assoc :initiaization-data nil))
+        )
+      ))
 
   (defmethod event-msg-handler :chsk/recv
     [{:as ev-msg :keys [?data]}]
@@ -81,61 +95,35 @@
   ;; Add your (defmethod handle-event-msg! <event-id> [ev-msg] <body>)s here...
   )
 
-;; Global state
-(def app-state (atom {}))
-
-(defn put-state! [k v]
-  (swap! app-state assoc k v))
-
-
 ;;react views
-
-(defn logged-in-as []
-  (let [user (atom {})]
-    (subscribe :load-project (fn [data] (chsk-send! [:dashboard/logged-in-user] 5000 (fn [cb-reply] (reset! user cb-reply)))))
-
-    (fn []
-      [:p.navbar-text.navbar-right "Signed in as " (:name @user)]
-      )
-    )
-
-  )
 
 
 (defn nav-bar []
-  (let [iterations (atom {})
-        current-iteration-id (atom 0)
-        active-tab (atom :stories)]
-    (subscribe :load-iteration #(reset! current-iteration-id (:iteration-id %)))
-    (subscribe :show-section (fn [data]
-                               (reset! active-tab (:section data))))
-    (subscribe :load-project (fn [data] (chsk-send! [:dashboard/project-iterations data] 5000 (fn [cb-reply]
-                                                                                                (reset! iterations (:iterations cb-reply))
-                                                                                                (reset! current-iteration-id (:current-iteration-id cb-reply))
-                                                                                                (publish-event :load-iteration {:iteration-id (:current-iteration-id cb-reply)})))))
-    (fn []
-      [:nav.navbar.navbar-default
-       [:div.container-fluid
-        [:div.navbar-header
-         [:a.navbar-brand {:href "#"} "Xplanner" [:sup "2"]]]
-        [:div.collapse.navbar-collapse
-         [:form.navbar-form.navbar-left
-          [:div.form-group
-           ;[:select.form-control {:value @current-iteration-id :on-change #(publish-event :load-iteration {:iteration-id (-> % .-target .-value)})}
-           [:select.form-control {:value @current-iteration-id :on-change #(set! (.-location js/window) (section-iteration-route {:page (name (:current-page-key @app-state)) :id (-> % .-target .-value)}))}
-            (map (fn [iteration]
-                   ^{:key (:id iteration)} [:option {:value (:id iteration)} (:name iteration)])
-                 @iterations)]]]
-         [:button#refresh-btn.btn.btn-primary.navbar-btn.navbar-left {:type button :on-click #(publish-event :load-iteration {:iteration-id @current-iteration-id})} [:span.glyphicon.glyphicon-refresh]]
-         [:ul.nav.navbar-nav
-          [:li#stories-tab {:role "presentation" :class (when (= :stories @active-tab) "active")} [:a#stories {:href (str "#/stories/iteration/" @current-iteration-id) :on-click #(publish-event :show-section {:section :stories})} "Stories"]]
-          [:li#teams-tab {:role "presentation" :class (when (= :teams @active-tab) "active")} [:a#teams {:href (str "#/teams/iteration/" @current-iteration-id) :on-click #(publish-event :show-section {:section :teams})} "Teams"]]
-          ]
-         [logged-in-as]
-         ]
+  (let [iterations (:project-iterations @app-state)
+        active-tab (:key (:current-page @app-state))
+        current-project-id (:current-project-id @app-state)
+        current-iteration-id (:current-iteration-id @app-state)]
+    [:nav.navbar.navbar-default
+     [:div.container-fluid
+      [:div.navbar-header
+       [:a.navbar-brand {:href "#"} "Xplanner" [:sup "2"]]]
+      [:div.collapse.navbar-collapse
+       [:form.navbar-form.navbar-left
+        [:div.form-group
+         [:select.form-control {:value current-iteration-id :on-change #(set! (.-location js/window) (section-iteration-route {:project-id (:current-project-id @app-state) :page (name (:key (:current-page @app-state))) :iteration-id (-> % .-target .-value)}))}
+          (map (fn [iteration]
+                 ^{:key (:id iteration)} [:option {:value (:id iteration)} (:name iteration)])
+               iterations)]]]
+       [:button#refresh-btn.btn.btn-primary.navbar-btn.navbar-left {:type button :on-click #(publish-event :change-page-state {:project-id current-project-id :iteration-id current-iteration-id :page-key active-tab})} [:span.glyphicon.glyphicon-refresh]]
+       [:ul.nav.navbar-nav
+        [:li#stories-tab {:role "presentation" :class (when (= :stories active-tab) "active")} [:a#stories {:href (str "#/project/" current-project-id "/iteration/" current-iteration-id "/stories")} "Stories"]]
+        [:li#teams-tab {:role "presentation" :class (when (= :teams active-tab) "active")} [:a#teams {:href (str "#/project/" current-project-id "/iteration/" current-iteration-id "/teams")} "Teams"]]
         ]
+       [:p.navbar-text.navbar-right "Signed in as " (:name (:current-user @app-state))]
        ]
-      )))
+      ]
+     ]
+    ))
 
 
 (defn story-view [story]
@@ -171,39 +159,32 @@
   [:th [:a {:on-click #(sort-fn key)} label]]
   )
 
-(defn storyTable [iteration-id]
-  (let [stories (atom {})
-        load-stories (fn [data] (chsk-send! [:dashboard/stories data] 5000 (fn [cb-reply] (reset! stories (sort-map-by cb-reply :orderno)))))
-        sort-fn (fn [sort-key] (reset! stories (sort-map-by @stories sort-key)))
+(defn storyTable []
+  (let [stories (:stories @app-state)
+        sort-fn (fn [sort-key] (put-state! :stories (sort-map-by stories sort-key)))
         story-sortable-header (partial sortable-header sort-fn)]
-    (when iteration-id
-      (load-stories {:iteration-id iteration-id}))
-
-    (subscribe :load-iteration load-stories)
-
-    (fn [iteration-id]
-      [:table.table.table-condensed
-       [:thead
-        [:tr
-         [:th "Action"]
-         [story-sortable-header "ID" :id]
-         [story-sortable-header "Order" :orderno]
-         [story-sortable-header "Ticket" :ticket]
-         [story-sortable-header "Epic" :epic_name]
-         [story-sortable-header "Story" :name]
-         [story-sortable-header "Est" :estimated_hours]
-         [:th "BZ"]
-         [:th "SA"]
-         [:th "DEV"]
-         [story-sortable-header "Team" :team_name]
-         [story-sortable-header "Release" :release_name]
-         ]]
-       [:tbody
-        (map (fn [story]
-               ^{:key (:id story)} [storyRow (reagent/wrap story swap! stories assoc (:id story))])
-             (vals @stories))
-        ]
-       ])))
+    [:table.table.table-condensed
+     [:thead
+      [:tr
+       [:th "Action"]
+       [story-sortable-header "ID" :id]
+       [story-sortable-header "Order" :orderno]
+       [story-sortable-header "Ticket" :ticket]
+       [story-sortable-header "Epic" :epic_name]
+       [story-sortable-header "Story" :name]
+       [story-sortable-header "Est" :estimated_hours]
+       [:th "BZ"]
+       [:th "SA"]
+       [:th "DEV"]
+       [story-sortable-header "Team" :team_name]
+       [story-sortable-header "Release" :release_name]
+       ]]
+     [:tbody
+      (map (fn [story]
+             ^{:key (:id story)} [storyRow (reagent/wrap story swap! stories assoc (:id story))])
+           (vals stories))
+      ]
+     ]))
 
 (defn teamRow [team]
   (let [editing? (atom false)
@@ -217,7 +198,10 @@
 
     (fn [team]
       [:tr
-       [:td [:button.btn.btn-default.btn-xs {:type "submit" :on-click #(do (reset! editing? true) (reset! editing-team-estimate-value (:team_estimate @team)) nil)} [:span.glyphicon.glyphicon-edit]]]
+       [:td [:button.btn.btn-default.btn-xs {:type "submit" :on-click #(do
+                                                                        (reset! editing? true)
+                                                                        (reset! editing-team-estimate-value (:team_estimate @team))
+                                                                        nil)} [:span.glyphicon.glyphicon-edit]]]
        [:td (:name @team)]
        [:td (:cool_name @team)]
        [:td (str/join "," (:epics @team))]
@@ -258,41 +242,32 @@
                )
              ]]])))
 
-(defn teamsTable [iteration-id]
-  (let [teams (atom {})
-        load-teams (fn [data] (chsk-send! [:dashboard/iteration-teams data] 5000 (fn [cb-reply] (reset! teams (sort-map-by cb-reply :name)))))
-        sort-fn (fn [sort-key] (reset! teams (sort-map-by @teams sort-key)))
-        team-sortable-header (partial sortable-header sort-fn)
-        ]
-
-    (when iteration-id
-      (load-teams {:iteration-id iteration-id}))
-
-    (subscribe :load-iteration load-teams)
-
-    (fn [iteration-id]
-      [:table.table.table-condensed
-       [:thead
-        [:tr
-         [:th "Actions"]
-         (team-sortable-header "Team" :name)
-         (team-sortable-header "AKA" :cool_name)
-         [:th "Epics"]
-         [:th "Leads"]
-         [:th.text-center "Planned"]
-         [:th.text-center "Current"]
-         [:th.text-center "In Progress"]
-         [:th.text-center "Issue Found"]
-         [:th.text-center "Implemented"]
-         [:th.text-center "Passed QA"]
-         [:th "Progress"]
-         ]
-        ]
-       [:tbody
-        (map (fn [team]
-               ^{:key (select-keys team [:id :iteration_id])} [teamRow (reagent/wrap team swap! teams assoc (:id team))])
-             (vals @teams))
-        ]])))
+(defn teamsTable []
+  (let [teams (:teams @app-state)
+        sort-fn (fn [sort-key] (put-state! :teams (into {} (sort-map-by teams sort-key))))
+        team-sortable-header (partial sortable-header sort-fn)]
+    [:table.table.table-condensed
+     [:thead
+      [:tr
+       [:th "Actions"]
+       (team-sortable-header "Team" :name)
+       (team-sortable-header "AKA" :cool_name)
+       [:th "Epics"]
+       [:th "Leads"]
+       [:th.text-center "Planned"]
+       [:th.text-center "Current"]
+       [:th.text-center "In Progress"]
+       [:th.text-center "Issue Found"]
+       [:th.text-center "Implemented"]
+       [:th.text-center "Passed QA"]
+       [:th "Progress"]
+       ]
+      ]
+     [:tbody
+      (map (fn [team]
+             ^{:key (select-keys team [:id :iteration_id])} [teamRow (reagent/wrap team swap! teams assoc (:id team))])
+           (vals teams))
+      ]]))
 
 
 (defn modal-dialog []
@@ -304,32 +279,53 @@
                :teams   teamsTable})
 
 (defn current-page-will-mount []
-  (put-state! :current-page [storyTable nil])
-  (put-state! :current-page-key :stories))
+  (put-state! :current-page {:key :stories :page [storyTable]}))
 
 (defn current-page-render []
-  [@app-state :current-page])
+  [(:current-page @app-state) :page])
 
 (defn current-page []
   (reagent/create-class {:component-will-mount current-page-will-mount :render current-page-render}))
+
+(defn load-iteration-stories [iteration-id]
+  (chsk-send! [:dashboard/stories {:iteration-id iteration-id}] 5000 (fn [cb-reply] (put-state! :stories (sort-map-by cb-reply :orderno))))
+  )
+
+(defn load-iteration-teams [iteration-id]
+  (chsk-send! [:dashboard/iteration-teams {:iteration-id iteration-id}] 5000 (fn [cb-reply] (put-state! :teams (into {} (sort-map-by cb-reply :name)))))
+  )
+
+(defn load-page-data [page iteration-id]
+  (if (= page :stories)
+    (load-iteration-stories iteration-id)
+    (load-iteration-teams iteration-id)))
+
+(subscribe :change-page-state (fn [data]
+                                (let [{:keys [current-project-id]} @app-state
+                                      {:keys [page-key iteration-id project-id]} data
+                                      {:keys [initialized]} @init-state]
+                                  (if initialized
+                                    (do
+                                      (put-state! :current-project-id project-id)
+                                      (put-state! :current-iteration-id iteration-id)
+                                      (put-state! :current-page {:key page-key :page [(page-key page-map)]})
+
+                                      (when (not= current-project-id project-id)
+                                        (chsk-send! [:dashboard/logged-in-user] 5000 (fn [cb-reply] (put-state! :current-user cb-reply)))
+                                        (chsk-send! [:dashboard/project-iterations {:project-id project-id}] 5000 (fn [cb-reply] (put-state! :project-iterations (:iterations cb-reply)))))
+                                      (load-page-data page-key iteration-id)
+                                      )
+                                    (swap! init-state assoc :initialization-data data))
+                                  )))
 
 ;; routing
 
 (secretary/set-config! :prefix "#")
 
-(defroute section-iteration-route "/:page/iteration/:id" [page id]
-          (let [current-page-key (:current-page-key @app-state)
-                page-key (keyword page)]
+(defroute section-iteration-route "/project/:project-id/iteration/:iteration-id/:page" [project-id iteration-id page]
+          (publish-event :change-page-state {:project-id project-id :page-key (keyword page) :iteration-id iteration-id}))
 
-            (if-not (= current-page-key page-key)
-              (do
-                (put-state! :current-page-key page-key)
-                (put-state! :current-page [(page-key page-map) id]))
-              (publish-event :load-iteration {:iteration-id id})
-              )
 
-            )
-          )
 
 ;; browser history
 
@@ -360,6 +356,6 @@
 (ready
   (reagent/render-component [nav-bar] (.getElementById js/document "nav-bar"))
   (reagent/render-component [current-page] (.getElementById js/document "storiesDetail"))
-  ;(reagent/render-component [teamsTable] (.getElementById js/document "teamsDetail"))
-  (reagent/render-component [modal-dialog] (.getElementById js/document "content")))
+  (reagent/render-component [modal-dialog] (.getElementById js/document "content"))
+  )
 

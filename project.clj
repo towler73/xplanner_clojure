@@ -34,11 +34,13 @@
                  [clojure-tools "1.1.3"]
                  [secretary "1.2.2"]
                  [clj-dbcp      "0.8.1"]
-                 [clj-liquibase "0.5.2"]]
+                 [clj-liquibase "0.5.2"]
+                 [figwheel "0.2.5"]]
 
   :plugins [[lein-ancient "0.5.5"]                          ; check for outdated dependencies
             [lein-cljsbuild "1.0.4"]                        ; compile clojure scirpt
-            [lein-environ "1.0.0"]]                         ; user of environment vars
+            [lein-environ "1.0.0"]
+            [lein-figwheel "0.2.5"]]
 
   :main ^:skip-aot dashboard.main
 
