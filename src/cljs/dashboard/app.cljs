@@ -265,7 +265,7 @@
       ]
      [:tbody
       (map (fn [team]
-             ^{:key (select-keys team [:id :iteration_id])} [teamRow (reagent/wrap team (fn [value] (swap! app-state assoc :teams (assoc teams (:id team) value))))])
+             ^{:key (select-keys team [:id :iteration_id])} [teamRow (reagent/wrap team (fn [value] (swap! app-state assoc :teams (assoc (:teams @app-state) (:id team) value))))])
            (vals teams))
       ]]))
 

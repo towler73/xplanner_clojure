@@ -1,24 +1,18 @@
 (ns util.wiki
-  (:require [clojure.string :as str]
-            [clojure.tools.html-utils :as html-utils])
-  (:import (org.xwiki.component.embed EmbeddableComponentManager)
-           (org.xwiki.rendering.converter Converter)
-           (org.xwiki.rendering.renderer.printer DefaultWikiPrinter)
-           (org.xwiki.rendering.syntax Syntax)
-           (java.io StringReader)))
+  (:require [clojure.string :as str])
+  (:import (java.io StringReader ByteArrayOutputStream)
+           (org.apache.maven.doxia DefaultConverter)
+           (org.apache.maven.doxia.wrapper InputReaderWrapper OutputStreamWrapper)))
 
-(def converter
-  (let [manager (EmbeddableComponentManager.)]
-    (.initialize manager (.getClassLoader (class manager)))
-    (.getInstance manager Converter)
-    ))
-
+(def converter (DefaultConverter.))
 
 
 (defn wiki->html [value]
-  (let [printer (DefaultWikiPrinter.)
-        fixed-value (str/replace value #"   ([0-9]) " "   $1. ")
-        string-reader (StringReader. fixed-value)]
-    (.convert converter string-reader Syntax/TWIKI_1_0 Syntax/XHTML_1_0 printer)
-    (.toString printer)))
+  (let [fixed-value (str/replace value #"   ([0-9]) " "   $1. ")
+        string-reader (StringReader. fixed-value)
+        out (ByteArrayOutputStream.)
+        input (InputReaderWrapper/valueOf string-reader "twiki" (.getInputFormats converter))
+        output (OutputStreamWrapper/valueOf out "xhtml" "UTF-8" (.getOutputFormats converter))]
+    (.convert converter input output)
+    (.toString out)))
 
