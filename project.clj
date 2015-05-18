@@ -6,40 +6,43 @@
 
   :source-paths ["src/clj" "src/cljs"]
 
-  :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2985"]
+  :dependencies [[org.clojure/clojure "1.7.0-beta2"]
+                 [org.clojure/clojurescript "0.0-3269" :classifier "aot" :exclusions [org.clojure/tools.reader org.clojure/data.json]]
+                 [org.clojure/tools.reader "0.9.2" :classifier "aot"]
+                 [org.clojure/data.json "0.2.6" :classifier "aot"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [lein-environ "1.0.0"]                     ; access environment vars
-                 [mysql/mysql-connector-java "5.1.34"]
-                 [yesql "0.4.0"]                            ; db access
-                 [com.taoensso/sente "1.3.0"]               ; web-sockets/ajax comms
+                 [mysql/mysql-connector-java "5.1.35"]
+                 [yesql "0.4.1"]                            ; db access
+                 [com.taoensso/sente "1.4.1"]               ; web-sockets/ajax comms
                  [http-kit "2.1.19"]                        ; http-server
-                 [compojure "1.3.2"]                        ; routing
+                 [compojure "1.3.4"]                        ; routing
                  [ring "1.3.2"]
-                 [ring/ring-defaults "0.1.4"]               ; ring middleware
+                 [ring/ring-defaults "0.1.5"]               ; ring middleware
                  [hiccup "1.0.5"]                           ; html rendering
                  [jayq "2.5.4"]
-                 [reagent "0.5.0-alpha"]
+                 [reagent "0.5.0" :exclusions [cljsjs/react]]
+                 [cljsjs/react-with-addons "0.13.1-0"]
                  [com.stuartsierra/component "0.2.3"]
-                 [hikari-cp "1.1.1"]
-                 [org.slf4j/slf4j-simple "1.7.10"]
-                 [org.slf4j/jcl-over-slf4j "1.7.10"]
+                 [hikari-cp "1.2.3"]
+                 [org.slf4j/slf4j-simple "1.7.12"]
+                 [org.slf4j/jcl-over-slf4j "1.7.12"]
                  [org.clojure/core.match "0.3.0-alpha4"]
-                 [buddy/buddy-auth "0.4.0"]
-                 [org.clojars.frozenlock/reagent-modals "0.2.2"]
+                 [buddy/buddy-auth "0.5.2"]
+                 [org.clojars.frozenlock/reagent-modals "0.2.3"]
                  [hickory "0.5.4"]
-                 [org.apache.maven.doxia/doxia-core "1.6"]
-                 [org.apache.maven.doxia/doxia-converter "1.2"]
+                 [org.apache.maven.doxia/doxia-converter "1.2" :exclusions [commons-logging xerces/xercesImpl]]
                  [clojure-tools "1.1.3"]
-                 [secretary "1.2.2"]
+                 [secretary "1.2.3"]
                  [clj-dbcp      "0.8.1"]
                  [clj-liquibase "0.5.2"]
-                 [figwheel "0.2.5"]]
+                 [figwheel "0.3.1" :exclusions [junit org.clojure/clojurescript]]
+                 [org.clojure/data.xml "0.0.8"]]
 
   :plugins [[lein-ancient "0.5.5"]                          ; check for outdated dependencies
             [lein-cljsbuild "1.0.4"]                        ; compile clojure scirpt
             [lein-environ "1.0.0"]
-            [lein-figwheel "0.2.5"]]
+            [lein-figwheel "0.2.5" :exclusions [org.clojure/clojure org.clojure/tools.reader org.codehaus.plexus/plexus-utils]]]
 
   :main ^:skip-aot dashboard.main
 
