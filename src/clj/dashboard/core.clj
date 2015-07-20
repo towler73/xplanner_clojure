@@ -92,7 +92,6 @@
                                             (?reply-fn (data/iteration-teams-summary db (:iteration-id ?data))))
              [:dashboard/project-iterations] (when ?reply-fn
                                                (println "data: " ?data)
-                                               ;todo fix current iteration id
                                                (?reply-fn {:iterations (data/project-iterations db (:project-id ?data)) :current-iteration-id (:id (data/initial-iteration db (:project-id ?data)))}))
              [:dashboard/save-team-estimate] (do (data/save-team-estimate db (:iteration_id ?data) (:id ?data) (:team_estimate ?data))
                                                  (when ?reply-fn
@@ -100,6 +99,8 @@
              [:dashboard/logged-in-user] (do
                                            (println (first (data/user db (name (:identity ring-req)))))
                                            (?reply-fn (first (data/user db (name (:identity ring-req))))))
+             [:dashboard/project-epics] (when ?reply-fn
+                                          (?reply-fn (data/active-epics db)))
              :else (when ?reply-fn
                      (?reply-fn {:umatched-event-as-echoed-from-from-server event})))))
   )

@@ -17,9 +17,15 @@
 (def add-team-lead-flag ["2" "bmorgan"
                          [(ch/add-columns :team_member [[:lead [:tinyint 1]]])]])
 
+(def add-epic-details ["3" "bmorgan"
+                       [(ch/add-columns :epic [[:start_date [:date]]
+                                                    [:completion_date [:date]]])]]
+  )
+
 (defchangelog dashboard-changelog "db.schema"
               [create-iteration-team-table
-               add-team-lead-flag])
+               add-team-lead-flag
+               add-epic-details])
 
 (def ds (cp/make-datasource :mysql {:host "localhost" :database "xplanner" :user "root" :password "l4cr0ss3"}))
 

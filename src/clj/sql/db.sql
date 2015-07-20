@@ -20,8 +20,8 @@ from story s left join person tracker on s.tracker_id = tracker.id
     left join person customer on s.customer_id = customer.id
     left join person developer on s.developer_id = developer.id
     left join team t on s.team_id = t.id
-    left join initiative i on s.initiative_id = i.id
-    left join client c on i.client_id = c.id
+    left join epic i on s.epic_id = i.id
+    left join business_project c on i.business_project_id = c.id
     left join releases r on s.release_id = r.id
 where iteration_id = :iteration_id
 
@@ -45,7 +45,7 @@ limit 0,1
 select t.id, t.name, t.cool_name, s.estimated_hours, s.status, it.business_estimate, it.team_estimate, s.iteration_id, init.name as epic_name, init.short_name as epic_short_name
 from story s join team t on s.team_id = t.id
 left join iteration_team it on t.id = it.team_id and s.iteration_id = it.iteration_id
-left join initiative init on s.initiative_id = init.id
+left join epic init on s.epic_id = init.id
 where s.iteration_id = :iteration_id
 
 -- name: team-leads
@@ -82,3 +82,9 @@ where id = :person_id
 -- name: team
 select * from team
 where id = :team_id
+
+-- name: active-epics
+select i.id as epic_id, i.name as epic_name, i.estimate, c.name as business_project_name, t.id as team_id, t.name as team_name, i.start_date, i.completion_date
+from epic i left join business_project c on i.business_project_id = c.id
+and i.inactive = 0
+left join team t on i.team_id = t.id

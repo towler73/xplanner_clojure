@@ -118,6 +118,7 @@
        [:ul.nav.navbar-nav
         [:li#stories-tab {:role "presentation" :class (when (= :stories active-tab) "active")} [:a#stories {:href (str "#/project/" current-project-id "/iteration/" current-iteration-id "/stories")} "Stories"]]
         [:li#teams-tab {:role "presentation" :class (when (= :teams active-tab) "active")} [:a#teams {:href (str "#/project/" current-project-id "/iteration/" current-iteration-id "/teams")} "Teams"]]
+        [:li#epics-tab {:role "presentation" :class (when (= :epics active-tab) "active")} [:a#epics {:href (str "#/project/" current-project-id "/iteration/" current-iteration-id "/epics")} "Epics"]]
         ]
        [:p.navbar-text.navbar-right "Signed in as " (:name (:current-user @app-state))]
        ]
@@ -269,6 +270,51 @@
            (vals teams))
       ]]))
 
+(defn epicRow [epic]
+  [:tr
+   [:td ]
+   [:td (:business_project_name epic)]
+   [:td (:epic_name epic)]
+   [:td (:estimate epic)]
+   [:td]
+   [:td]
+   [:td]
+   ]
+  )
+
+(defn epicsTable []
+  [:table.table.table-condensed
+   [:thead
+      [:th "Actions"]
+      [:th "Biz Project"]
+      [:th "Epic"]
+      [:th "Estimate"]
+      [:th "Team"]
+      [:th "Start Date"]
+      [:th "End Date"]]
+   [:tbody
+    (map (fn [epic]
+           ^{:key (:epic_id epic)} [epicRow epic]
+           ) (:epics @app-state))]]
+  )
+
+(defn epicsGantt []
+  [:table.table.table-condensed
+   [:thead
+    [:th "Iterations"]
+    ]
+   ]
+  )
+
+(defn epicsContainer []
+  [:div#epics-container
+   [:div#epics-table
+    [epicsTable]]
+   [:div#epics-gantt
+    [epicsGantt]]
+   ]
+  )
+
 
 (defn modal-dialog []
   [modals/modal-window])
@@ -276,7 +322,8 @@
 
 ;; Page View
 (def page-map {:stories storyTable
-               :teams   teamsTable})
+               :teams   teamsTable
+               :epics   epicsContainer})
 
 (defn current-page-will-mount []
   (put-state! :current-page {:key :stories :page [storyTable]}))
@@ -295,10 +342,15 @@
   (chsk-send! [:dashboard/iteration-teams {:iteration-id iteration-id}] 5000 (fn [cb-reply] (put-state! :teams (into {} (sort-map-by cb-reply :name)))))
   )
 
+(defn load-epics [iteration-id]
+  (chsk-send! [:dashboard/project-epics] 5000 (fn [cb-reply] (put-state! :epics cb-reply)))
+  )
+
 (defn load-page-data [page iteration-id]
-  (if (= page :stories)
-    (load-iteration-stories iteration-id)
-    (load-iteration-teams iteration-id)))
+  (case page
+    :stories (load-iteration-stories iteration-id)
+    :teams (load-iteration-teams iteration-id)
+    :epics (load-epics iteration-id)))
 
 (subscribe :change-page-state (fn [data]
                                 (let [{:keys [current-project-id]} @app-state
